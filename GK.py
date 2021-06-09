@@ -1,3 +1,5 @@
+from math import fabs
+from os import name
 import subprocess
 import sys
 import openpyxl
@@ -15,7 +17,7 @@ import random
 import urllib.request
 import json
 bingMapsKey = "z04OKoL4xG4wPX3Qht8u~kN613p_8YYryf8s86kHfLA~AoIt5JF8V791QKh5Ty85LCwq-qRoCHRSPsZE2OE43KdRA1mdBu8Me6Ufq58keovG"
-
+depot  = 0 
 N = 50
 t_max = 3
 generations = 30
@@ -485,6 +487,8 @@ def print_solution(data, presentation):
     result = []
     count_vehi = 0
     temp_vehi = copy.deepcopy(data1['vehicle_capacities'])
+    tmpstr = 'Danh sách địa điểm:'
+    result.append(tmpstr)
     for tmpIndex in range(len(data['wd_names_now'])):
         tmpstr = '{0}: {1}'.format(tmpIndex, data['wd_names_now'][tmpIndex])
         # name_cell=sheet_obj.cell(row=tmpIndex+max_row+1,column=1)
@@ -509,19 +513,26 @@ def print_solution(data, presentation):
                 break
     stt = 1
     index_row = max_row+1
+    tmpstr = '            '
+    result.append(tmpstr)
     for vehicle_id in range(len(presentation)):
         nowload = 0
         route_distance = 0
-        tmpstr = 'Lộ trình cho xe {0}:     Trọng tải xe: {1} KGS'.format(vehicle_id,new_cap[vehicle_id])
+        tmpstr = 'Lộ trình {0} - xe: {1} KGS'.format(vehicle_id,new_cap[vehicle_id])
         result.append(tmpstr)
         tmpstr = ''
-        tmpstr += 'Từ {0} Vận chuyển({1} KGS) ->'.format(0,0)
+        tmpstr += 'Từ {0} đến {1}:'.format(0,presentation[vehicle_id][0])
+        tmpstr += ' Khối lượng: {0} KGS | Quãng đường: {1} km'.format(demand[presentation[vehicle_id][0]],distance_mt[0][presentation[vehicle_id][0]])
+        result.append(tmpstr)
         j =0
         for j in range(len(presentation[vehicle_id])):
-
+            tmpstr = ''
             nowload += demand[presentation[vehicle_id][j]]
-            tmpstr += '{0} Vận chuyển({1} KGS) ->'.format(presentation[vehicle_id][j],nowload)
-
+            if (j != 0):
+                tmpstr +='Từ {0} đến {1}:'.format(presentation[vehicle_id][j-1],presentation[vehicle_id][j])
+                tmpstr += ' Khối lượng: {0} KGS | Quãng đường: {1} km'.format(demand[presentation[vehicle_id][j]],distance_mt[presentation[vehicle_id][j-1]][presentation[vehicle_id][j]])
+                result.append(tmpstr)
+                # tmpstr += '{0} Vận chuyển({1} KGS) ->'.format(presentation[vehicle_id][j],nowload)
             # write result to result.xlsx
             stt_cell=sheet_obj.cell(row=index_row,column=1)
             stt_cell.value = stt
@@ -558,9 +569,10 @@ def print_solution(data, presentation):
         route_distance += distance_mt[presentation[vehicle_id][j]][0]
         total_distance += route_distance
         total_load += nowload
-        tmpstr += '{0} Vận chuyển({1} KGS) '.format(0,0)
-        result.append(tmpstr)
-        
+        tmpstr = ''
+        tmpstr +='Từ {0} đến {1}:'.format(presentation[vehicle_id][j],0)
+        tmpstr += ' Khối lượng: {0} KGS | Quãng đường: {1} km'.format(0,distance_mt[presentation[vehicle_id][j]][0])
+        result.append(tmpstr)        
         tmpstr = 'Quãng đường của lộ trình: {}km'.format(route_distance)
         result.append(tmpstr)
         tmpstr = 'Khối lượng vận chuyển của lộ trình: {}'.format(nowload)
@@ -573,9 +585,12 @@ def print_solution(data, presentation):
         if dt[i] != 0:
             for v in range(dt[i]):
                 vehicle_id+=1
-                tmpstr = 'Lộ trình của xe {0}:  Trọng tải xe: {1} KGS'.format(vehicle_id,data['list_cap'][0])
+                tmpstr = 'Lộ trình {0} - xe {1} KGS'.format(vehicle_id,data['list_cap'][0])
                 result.append(tmpstr)
-                tmpstr = 'Từ {0} Vận chuyển({1} KGS) ->  {2} Vận chuyển({3} KGS) -> {4} Vận chuyển({5} KGS) '.format(0,0,i,data1['list_cap'][0],0,0)
+                tmpstr = 'Từ {0} đến {1}: Khối lượng: {2} KGS | Quãng đường: {3} km'.format(0,i,data1['list_cap'][0],data1['distance_matrix'][0][i])
+                result.append(tmpstr)
+                tmpstr = 'Từ {0} đến {1}: Khối lượng: {2} KGS | Quãng đường: {3} km'.format(i,0,0,data1['distance_matrix'][i][0])
+                # tmpstr = 'Từ {0} Vận chuyển({1} KGS) ->  {2} Vận chuyển({3} KGS) -> {4} Vận chuyển({5} KGS) '.format(0,0,i,data1['list_cap'][0],0,0)
                 result.append(tmpstr)
                 rt = int(data1['distance_matrix'][0][i] +   data1['distance_matrix'][i][0])
                 tmpstr = 'Quãng đường của lộ trình: {}km'.format(rt)
@@ -619,6 +634,27 @@ def print_solution(data, presentation):
             space_cell.value = "Tổng"
         else:
             space_cell.value = total_distance
+    size_cap = len(data1['list_cap'])
+    tke_xe = []
+    for i in range(size_cap):
+        tke_xe.append(0)
+    for i in new_cap:
+        for j in range(size_cap):
+            if i == data1['list_cap'][j]:
+                tke_xe[j] += 1
+                break
+    for i in dt:
+        if i != 0:
+            tke_xe[0] += i
+    
+    tmpstr = "Tổng số lượng xe:"
+    result.append(tmpstr)
+    for i in range(size_cap):
+        if tke_xe[i] != 0:
+            tmpstr = '   -  {0} xe {1} KGS'.format(tke_xe[i],data1['list_cap'][i])
+            result.append(tmpstr)
+    tmpstr = '            '
+    result.append(tmpstr)
     tmp_str1 = 'Tổng quãng đường di chuyển của tất cả lộ trình: {}km'.format(total_distance)
     result.append(tmp_str1)
     tmp_str2 = 'Tổng khối lượng vận chuyển của tất cả lộ trình: {}'.format(total_load)
@@ -701,14 +737,24 @@ class Ui_MainWindow(object):
         self.pushButton3 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton3.setGeometry(QtCore.QRect(480, 50, 160, 23))
         self.pushButton3.setObjectName("pushButton3")
+        self.pushButton4 = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton4.setGeometry(QtCore.QRect(610, 120, 80, 23))
+        self.pushButton4.setObjectName("pushButton3")
         self.comboBox = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox.setGeometry(QtCore.QRect(30, 50, 251, 23))
         self.comboBox.setObjectName("comboBox")
         for i in widget_names:
             self.comboBox.addItem("")
         #
+        self.comboBox1 = QtWidgets.QComboBox(self.centralwidget)
 
-        
+        self.comboBox1.setGeometry(QtCore.QRect(400, 120, 200, 23))
+        self.comboBox1.setObjectName("comboBox1")
+        for i in widget_names:
+            self.comboBox1.addItem("")
+        #
+        self.label_5 = QtWidgets.QLabel(self.centralwidget)
+        self.label_5.setGeometry(QtCore.QRect(400, 100, 47, 13))
         #
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(30, 30, 47, 13))
@@ -783,9 +829,12 @@ class Ui_MainWindow(object):
         # which encompasses the whole window
         
         #
+        # self.spinBox.setKeyboardTracking(False)
+        # self.spinBox.editingFinished.connect(self.get_text_in_comboBox)
         self.pushButton.clicked.connect(self.get_text_in_comboBox)
         self.pushButton2.clicked.connect(self.run)
         self.pushButton3.clicked.connect(self.addData)
+        self.pushButton4.clicked.connect(self.changeDepot)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 770, 21))
@@ -803,14 +852,86 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "Màn hình chính"))
         self.pushButton.setText(_translate("MainWindow", "Lựa chọn"))
         self.pushButton3.setText(_translate("MainWindow", "Thêm điểm khách hàng mới"))
+        self.pushButton4.setText(_translate("MainWindow", "Đổi kho"))
+
         for i in range(len(widget_names)):
             self.comboBox.setItemText(i, _translate("MainWindow", widget_names[i]))
-        
+        for i in range(len(widget_names)):
+            self.comboBox1.setItemText(i, _translate("MainWindow", widget_names[i]))
         self.label.setText(_translate("MainWindow", "Tên "))
         self.label_2.setText(_translate("MainWindow", "Khối lượng giao hàng (KGS):"))
         self.label_3.setText(_translate("MainWindow", "Danh sách yêu cầu:"))
         self.label_4.setText(_translate("MainWindow", "Tìm kiếm:"))
+        self.label_5.setText(_translate("MainWindow", "Tên kho:"))
+
         self.pushButton2.setText(_translate("MainWindow", "Chạy"))
+    def changeDepot(self):
+        # 
+        old_depot = 0
+        text = str(self.comboBox1.currentText())
+        count = 0
+        for i in self.widgets:
+            if text == i.name:
+                new_depot = count
+                break
+            count += 1
+        
+        print(text)
+        # open file excel
+        wb_obj1 = openpyxl.load_workbook("data/coordinate.xlsx")
+        sheet_obj1 = wb_obj1.active
+        max_column1=sheet_obj1.max_column
+        max_row1=sheet_obj1.max_row
+        #
+        wb_obj2 = openpyxl.load_workbook("data/data.xlsx")
+        sheet_obj2 = wb_obj2["Sheet1"]
+        max_column2=sheet_obj2.max_column
+        max_row2=sheet_obj2.max_row
+        # change row col in distance matrix 
+        size = sheet_obj2.max_column-2
+        extra_index = 2
+        # đổi vị trí những chỗ không phải giao nhau
+        for i in range(size):
+            if (i != old_depot and i != new_depot):
+                tmp = sheet_obj2.cell(row = old_depot+extra_index+1,column=1+i+extra_index).value
+                sheet_obj2.cell(row = old_depot+extra_index+1,column=1+i+extra_index).value = sheet_obj2.cell(row = new_depot+extra_index+1,column=1+i+extra_index).value
+                sheet_obj2.cell(row = new_depot+extra_index+1,column=1+i+extra_index).value = tmp
+                tmp = sheet_obj2.cell(row = i+extra_index+1,column=1+old_depot+extra_index).value
+                sheet_obj2.cell(row = i+extra_index+1,column=1+old_depot+extra_index).value =sheet_obj2.cell(row = i+extra_index+1,column=1+new_depot+extra_index).value
+                sheet_obj2.cell(row = i+extra_index+1,column=1+new_depot+extra_index).value = tmp
+        # đổi vị trí những chỗ giao nhau
+        tmp = sheet_obj2.cell(row = old_depot+extra_index+1,column=1+new_depot+extra_index).value
+        sheet_obj2.cell(row = old_depot+extra_index+1,column=1+new_depot+extra_index).value = sheet_obj2.cell(row = new_depot+extra_index+1,column=1+old_depot+extra_index).value
+        sheet_obj2.cell(row = new_depot+extra_index+1,column=1+old_depot+extra_index).value = tmp
+        # đổi tên
+        tmp = sheet_obj2.cell(row = 1, column= old_depot+extra_index+1).value
+        sheet_obj2.cell(row = 1, column= old_depot+extra_index+1).value = sheet_obj2.cell(row = 1, column= new_depot+extra_index+1).value
+        sheet_obj2.cell(row = 1, column= new_depot+extra_index+1).value = tmp
+        tmp = sheet_obj2.cell(row = old_depot+extra_index+1, column = 1).value
+        sheet_obj2.cell(row = old_depot+extra_index+1, column = 1).value = sheet_obj2.cell(row = new_depot+extra_index+1, column = 1).value
+        sheet_obj2.cell(row = new_depot+extra_index+1, column = 1).value  = tmp
+        tmp = sheet_obj2.cell(row = 2, column= old_depot+extra_index+1).value
+        sheet_obj2.cell(row = 2, column= old_depot+extra_index+1).value = sheet_obj2.cell(row = 2, column= new_depot+extra_index+1).value
+        sheet_obj2.cell(row = 2, column= new_depot+extra_index+1).value = tmp
+        tmp = sheet_obj2.cell(row = old_depot+extra_index+1, column = 2).value
+        sheet_obj2.cell(row = old_depot+extra_index+1, column = 2).value = sheet_obj2.cell(row = new_depot+extra_index+1, column = 2).value
+        sheet_obj2.cell(row = new_depot+extra_index+1, column = 2).value  = tmp
+        wb_obj2.save("data/data.xlsx")
+        # change row in coordinate
+        for i in range(3):
+            tmp = sheet_obj1.cell(row = old_depot+1,column = i+1).value
+            sheet_obj1.cell(row = old_depot+1,column = i+1).value = sheet_obj1.cell(row = new_depot+1,column = i+1).value
+            sheet_obj1.cell(row = new_depot+1,column = i+1).value = tmp
+        wb_obj1.save("data/coordinate.xlsx")
+        global or_data
+        or_data = create_data_model()
+        countName = 0
+        tmpName = data1['wd_names'][old_depot]
+        data1['wd_names'][old_depot] = data1['wd_names'][new_depot]
+        data1['wd_names'][new_depot] = tmpName
+        data1['demands'] = copy.deepcopy(or_data['demands'])
+        data1['distance_matrix'] = copy.deepcopy(or_data['distance_matrix'])
+        ui.setupUi(MainWindow,data1['wd_names'])
     def addData(self):
         self.w2 = AnotherWindow1()
         self.w2.show()
